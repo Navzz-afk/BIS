@@ -1,0 +1,78 @@
+import random
+
+# Parameters
+POPULATION_SIZE = 10
+GENE_LENGTH = 5  # bits to represent x (0 to 31)
+GENERATIONS = 50
+MUTATION_RATE = 0.1
+TOURNAMENT_SIZE = 3
+
+# Objective function: f(x) = x^2
+def fitness(x):
+    return x ** 2
+
+# Decode binary string to integer
+def decode(individual):
+    return int(individual, 2)
+
+# Generate a random individual (binary string)
+def random_individual():
+    return ''.join(random.choice('01') for _ in range(GENE_LENGTH))
+
+# Fitness wrapper function for selection and sorting
+def fitness_of_individual(individual):
+    return fitness(decode(individual))
+
+# Tournament selection (simplified, no lambda)
+def select(population):
+    tournament = random.sample(population, TOURNAMENT_SIZE)
+    return max(tournament, key=fitness_of_individual)
+
+# Two-child single-point crossover
+def crossover(parent1, parent2):
+    point = random.randint(1, GENE_LENGTH - 1)
+    child1 = parent1[:point] + parent2[point:]
+    child2 = parent2[:point] + parent1[point:]
+    return child1, child2
+
+# Bit-flip mutation
+def mutate(individual):
+    new_gene = ''
+    for bit in individual:
+        if random.random() < MUTATION_RATE:
+            new_gene += '0' if bit == '1' else '1'
+        else:
+            new_gene += bit
+    return new_gene
+
+# Initialize population
+population = [random_individual() for _ in range(POPULATION_SIZE)]
+
+# Genetic Algorithm loop
+for generation in range(GENERATIONS):
+    # Sort population by fitness descending
+    population = sorted(population, key=fitness_of_individual, reverse=True)
+    best = population[0]
+    print(f"Gen {generation}: Best fitness = {fitness_of_individual(best)}, x = {decode(best)}")
+    
+    # Elitism: keep best individual
+    new_population = [best]
+    
+    # Generate new individuals until population size reached
+    while len(new_population) < POPULATION_SIZE:
+        parent1 = select(population)
+        parent2 = select(population)
+        
+        child1, child2 = crossover(parent1, parent2)
+        child1 = mutate(child1)
+        child2 = mutate(child2)
+        
+        new_population.append(child1)
+        if len(new_population) < POPULATION_SIZE:
+            new_population.append(child2)
+    
+    population = new_population
+
+# Final best solution
+best_individual = max(population, key=fitness_of_individual)
+print(f"\nBest solution: x = {decode(best_individual)}, f(x) = {fitness_of_individual(best_individual)}")
