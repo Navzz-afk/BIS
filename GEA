@@ -1,0 +1,102 @@
+import random
+
+
+POP_SIZE = 30  
+GENERATIONS = 40  
+MUTATION_RATE = 0.5 
+TOURNAMENT_SIZE = 3  
+
+# Amino acid to codon mapping with host codon usage weights
+codon_usage = {
+    'M': [('ATG', 1.0)],  
+    'A': [('GCT', 0.18), ('GCC', 0.40), ('GCA', 0.23), ('GCG', 0.19)]  
+}
+
+# Target protein (amino acid sequence)
+protein = "AAA"  
+
+
+print("Optimizing for target protein sequence:", protein)
+print("Codon usage preferences for each amino acid in the target protein:")
+for aa in protein:
+    print(f"For {aa}:")
+    for codon, weight in codon_usage[aa]:
+        print(f"    Codon: {codon}, Usage weight: {weight}")
+
+# Initialize genotype: randomly pick any codon uniformly (no bias)
+def random_genotype():
+    genotype = []
+    for aa in protein:
+        codons = [c for c, _ in codon_usage[aa]]  
+        codon = random.choice(codons)
+        genotype.append(codon)
+    return genotype
+
+
+def fitness(genotype):
+    score = 0
+    for aa, codon in zip(protein, genotype):
+        for c, weight in codon_usage[aa]:
+            if c == codon:
+                score += weight
+                break
+    return score
+
+# Mutation
+def mutate(genotype):
+    new_genotype = genotype[:]
+    for i, aa in enumerate(protein):
+        if random.random() < MUTATION_RATE:
+            codons = codon_usage[aa]
+            current_codon = new_genotype[i]
+            alternatives = [c for c, w in codons if c != current_codon]
+            if alternatives:
+                new_genotype[i] = random.choice(alternatives)
+    return new_genotype
+
+# Crossover
+def crossover(parent1, parent2):
+    if len(parent1) <= 1:
+        return parent1[:], parent2[:]
+    point = random.randint(1, len(parent1) - 1)
+    child1 = parent1[:point] + parent2[point:]
+    child2 = parent2[:point] + parent1[point:]
+    return child1, child2
+
+# Selection: tournament selection
+def selection(population):
+    contenders = random.sample(population, TOURNAMENT_SIZE)
+    return max(contenders, key=lambda g: fitness(g))
+
+# Genetic Algorithm
+def genetic_algorithm():
+    population = [random_genotype() for _ in range(POP_SIZE)]
+
+    for gen in range(GENERATIONS):
+        new_population = []
+        while len(new_population) < POP_SIZE:
+            parent1 = selection(population)
+            parent2 = selection(population)
+            child1, child2 = crossover(parent1, parent2)
+            child1 = mutate(child1)
+            child2 = mutate(child2)
+            new_population.extend([child1, child2])
+        population = new_population[:POP_SIZE]
+
+        best = max(population, key=fitness)
+        print(f"Gen {gen+1}: Best Fitness = {fitness(best):.3f}, Sequence = {''.join(best)}")
+
+    return max(population, key=fitness)
+
+
+best_solution = genetic_algorithm()
+
+
+print("\nBest optimized DNA sequence encoding protein:", ''.join(best_solution))
+print("Fitness (codon usage score):", fitness(best_solution))
+
+for i, aa in enumerate(protein):
+    codon_used = best_solution[i]
+    for c, weight in codon_usage[aa]:
+        if c == codon_used:
+            print(f"For {aa}: Best codon = {codon_used} with usage weight = {weight:.3f}")
