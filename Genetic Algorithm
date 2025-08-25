@@ -1,78 +1,84 @@
 import random
 
-# Parameters
-POPULATION_SIZE = 10
-GENE_LENGTH = 5  # bits to represent x (0 to 31)
-GENERATIONS = 50
-MUTATION_RATE = 0.1
-TOURNAMENT_SIZE = 3
+items = [
+    (60, 10),   
+    (100, 20),  
+    (120, 30),  
+    (80, 15),   
+    (30, 5)     
+]
 
-# Objective function: f(x) = x^2
-def fitness(x):
-    return x ** 2
+max_weight = 50
+population_size = 10
+generations = 100
+mutation_rate = 0.1
+tournament_size = 3
 
-# Decode binary string to integer
-def decode(individual):
-    return int(individual, 2)
 
-# Generate a random individual (binary string)
-def random_individual():
-    return ''.join(random.choice('01') for _ in range(GENE_LENGTH))
 
-# Fitness wrapper function for selection and sorting
-def fitness_of_individual(individual):
-    return fitness(decode(individual))
+def generate_chromosome(length):
+    return [random.randint(0, 1) for _ in range(length)]
 
-# Tournament selection (simplified, no lambda)
-def select(population):
-    tournament = random.sample(population, TOURNAMENT_SIZE)
-    return max(tournament, key=fitness_of_individual)
+def fitness(chromosome):
+    total_value = 0
+    total_weight = 0
+    for gene, (value, weight) in zip(chromosome, items):
+        if gene:
+            total_value += value
+            total_weight += weight
+    return total_value if total_weight <= max_weight else 0
 
-# Two-child single-point crossover
+def selection(population):
+    contenders = random.sample(population, tournament_size)
+    return max(contenders, key=fitness)
+
 def crossover(parent1, parent2):
-    point = random.randint(1, GENE_LENGTH - 1)
-    child1 = parent1[:point] + parent2[point:]
-    child2 = parent2[:point] + parent1[point:]
-    return child1, child2
+    point = random.randint(1, len(parent1) - 1)
+    return (
+        parent1[:point] + parent2[point:],
+        parent2[:point] + parent1[point:]
+    )
 
-# Bit-flip mutation
-def mutate(individual):
-    new_gene = ''
-    for bit in individual:
-        if random.random() < MUTATION_RATE:
-            new_gene += '0' if bit == '1' else '1'
-        else:
-            new_gene += bit
-    return new_gene
+def mutate(chromosome):
+    return [gene if random.random() > mutation_rate else 1 - gene for gene in chromosome]
 
-# Initialize population
-population = [random_individual() for _ in range(POPULATION_SIZE)]
-
-# Genetic Algorithm loop
-for generation in range(GENERATIONS):
-    # Sort population by fitness descending
-    population = sorted(population, key=fitness_of_individual, reverse=True)
-    best = population[0]
-    print(f"Gen {generation}: Best fitness = {fitness_of_individual(best)}, x = {decode(best)}")
+def run_genetic_algorithm():
     
-    # Elitism: keep best individual
-    new_population = [best]
-    
-    # Generate new individuals until population size reached
-    while len(new_population) < POPULATION_SIZE:
-        parent1 = select(population)
-        parent2 = select(population)
-        
-        child1, child2 = crossover(parent1, parent2)
-        child1 = mutate(child1)
-        child2 = mutate(child2)
-        
-        new_population.append(child1)
-        if len(new_population) < POPULATION_SIZE:
-            new_population.append(child2)
-    
-    population = new_population
+    print("0/1 Knapsack Problem Setup")
+    print(f"Maximum Knapsack Weight: {max_weight}")
+    print("Items (index: value, weight):")
+    for idx, (value, weight) in enumerate(items):
+        print(f"  Item {idx}: Value = {value}, Weight = {weight}")
+    print("-" * 40)
 
-# Final best solution
-best_individual = max(population, key=fitness_of_individual)
-print(f"\nBest solution: x = {decode(best_individual)}, f(x) = {fitness_of_individual(best_individual)}")
+    # Initial population
+    population = [generate_chromosome(len(items)) for _ in range(population_size)]
+
+    for generation in range(generations):
+        new_population = []
+
+        while len(new_population) < population_size:
+            parent1 = selection(population)
+            parent2 = selection(population)
+            child1, child2 = crossover(parent1, parent2)
+            new_population.append(mutate(child1))
+            if len(new_population) < population_size:
+                new_population.append(mutate(child2))
+
+        population = new_population
+        best = max(population, key=fitness)
+        print(f"Generation {generation + 1}: Best Fitness = {fitness(best)}")
+
+    # Final best solution
+    best = max(population, key=fitness)
+    print("\n🏆 Best Solution Found:")
+    print("Chromosome:", best)
+    print("Total Value:", fitness(best))
+    total_weight = sum(weight for gene, (_, weight) in zip(best, items) if gene)
+    print("Total Weight:", total_weight)
+
+
+
+
+if __name__ == "__main__":
+    run_genetic_algorithm()
