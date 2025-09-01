@@ -1,0 +1,89 @@
+import numpy as np
+
+# Constants
+g = 9.81  # acceleration due to gravity (m/s²)
+
+# Objective function: Calculate range of projectile given velocity and angle
+def objective_function(params):
+    v = params[0]  # initial velocity (m/s)
+    angle = np.radians(params[1])  # launch angle in radians
+    
+    # Range formula (without air resistance)
+    range_ = (v**2 * np.sin(2 * angle)) / g
+    return -range_  # We minimize the negative range to maximize the actual range
+
+# PSO Class
+class PSO:
+    def __init__(self, objective_function, n_particles, n_dimensions, bounds, max_iter=100, w=0.5, c1=1.5, c2=1.5):
+        self.obj_func = objective_function
+        self.n_particles = n_particles
+        self.n_dimensions = n_dimensions
+        self.bounds = bounds
+        self.max_iter = max_iter
+        self.w = w       # Inertia weight
+        self.c1 = c1     # Cognitive component
+        self.c2 = c2     # Social component
+        
+        # Initialize particles' positions and velocities
+        self.positions = np.random.uniform(bounds[0], bounds[1], (n_particles, n_dimensions))
+        self.velocities = np.random.uniform(-1, 1, (n_particles, n_dimensions))
+        
+        # Initialize personal best positions and scores
+        self.personal_best_positions = np.copy(self.positions)
+        self.personal_best_scores = np.apply_along_axis(self.obj_func, 1, self.positions)
+        
+        # Initialize global best position and score
+        self.global_best_position = self.personal_best_positions[np.argmin(self.personal_best_scores)]
+        self.global_best_score = np.min(self.personal_best_scores)
+    
+    def optimize(self):
+        for iteration in range(self.max_iter):
+            for i in range(self.n_particles):
+                # Update velocity
+                inertia = self.w * self.velocities[i]
+                cognitive = self.c1 * np.random.random(self.n_dimensions) * (self.personal_best_positions[i] - self.positions[i])
+                social = self.c2 * np.random.random(self.n_dimensions) * (self.global_best_position - self.positions[i])
+                self.velocities[i] = inertia + cognitive + social
+                
+                # Update position
+                self.positions[i] += self.velocities[i]
+                
+                # Apply bounds (if necessary)
+                self.positions[i] = np.clip(self.positions[i], self.bounds[0], self.bounds[1])
+                
+                # Evaluate new score
+                score = self.obj_func(self.positions[i])
+                
+                # Update personal best if the new score is better
+                if score < self.personal_best_scores[i]:
+                    self.personal_best_scores[i] = score
+                    self.personal_best_positions[i] = np.copy(self.positions[i])
+            
+            # Update global best if a better solution is found
+            min_score_idx = np.argmin(self.personal_best_scores)
+            if self.personal_best_scores[min_score_idx] < self.global_best_score:
+                self.global_best_score = self.personal_best_scores[min_score_idx]
+                self.global_best_position = np.copy(self.personal_best_positions[min_score_idx])
+            
+            print(f"Iteration {iteration + 1}/{self.max_iter}, Best Range (Negative): {-self.global_best_score}")
+        
+        return self.global_best_position, -self.global_best_score
+
+# Define PSO parameters
+n_particles = 30
+n_dimensions = 2  # Initial velocity and angle
+bounds = [10, 100]  # Range for initial velocity (m/s) and angle (degrees)
+max_iter = 100
+
+# Create PSO object
+pso = PSO(objective_function, n_particles, n_dimensions, bounds, max_iter)
+
+# Run PSO optimization
+best_position, best_range = pso.optimize()
+
+# Extract optimal velocity and angle
+best_velocity = best_position[0]
+best_angle = best_position[1]
+
+print(f"\nOptimal Launch Parameters: Velocity = {best_velocity:.2f} m/s, Angle = {best_angle:.2f} degrees")
+print(f"Maximum Range = {best_range:.2f} meters")
